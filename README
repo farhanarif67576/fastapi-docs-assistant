@@ -11,46 +11,104 @@ FastAPI is one of the most popular Python web frameworks, with official document
 - **Intermediate users** waste time searching across multiple pages
 - **Experienced developers** need quick, precise lookups without re-reading entire pages
 
-FastAPI Docs Assistant lets developers ask natural language questions and get precise, context-grounded answers from the official documentation with citations.
+**FastAPI Docs Assistant** lets developers ask natural language questions and get precise, context-grounded answers from the official documentation with citations.
 
 ---
 
 ## Architecture
 
 ```mermaid
-graph TD
-    User["User Browser / curl"]
-    API["FastAPI API (server.py)"]
-    KB["Knowledge Base"]
-    LLM["DeepSeek LLM"]
-    DB[("PostgreSQL + pgvector")]
-    GF["Grafana Dashboard"]
-    
-    User -->|POST /question| API
-    API -->|Rewrite Query| API
-    API -->|Hybrid Search| KB
-    KB -->|TF-IDF Index| KB
-    KB -->|Vector Embeddings| KB
-    API -->|Re-rank Results| API
-    API -->|Build Prompt| API
-    API -->|Call LLM| LLM
-    LLM -->|Answer| API
-    API -->|Log Conversation| DB
-    DB -->|Metrics| GF
-    User -->|POST /feedback| API
-    API -->|Save Feedback| DB
+graph TB
+    subgraph User_Layer["📱 User Layer"]
+        U["User Browser / curl"]
+    end
+
+    subgraph Frontend["🎨 Frontend (React + Vite)"]
+        F["Chat UI<br/>port 8080"]
+    end
+
+    subgraph API_Layer["⚙️ API Layer (FastAPI)"]
+        API["API Server<br/>port 8000"]
+        QW["Query Rewriter<br/>DeepSeek LLM"]
+        HS["Hybrid Search Engine"]
+        RR["Re-ranker<br/>cross-encoder/MiniLM"]
+        PB["Prompt Builder"]
+    end
+
+    subgraph Knowledge_Base["📚 Knowledge Base"]
+        TFIDF["TF-IDF Index<br/>minsearch"]
+        VE["Vector Store<br/>sentence-transformers"]
+        RAW[("FastAPI Docs<br/>135 pages")]
+    end
+
+    subgraph LLM_Layer["🤖 LLM Layer"]
+        LLM["DeepSeek LLM<br/>deepseek-v4-flash"]
+    end
+
+    subgraph Storage["💾 Storage & Monitoring"]
+        DB[("PostgreSQL + pgvector<br/>port 5432")]
+        GF["Grafana<br/>port 3000"]
+    end
+
+    %% Query Flow (runtime)
+    U -->|"HTTP POST /question"| API
+    API -->|"1. Rewrite Query"| QW
+    QW -->|"2a. Keyword Search"| TFIDF
+    QW -->|"2b. Semantic Search"| VE
+    TFIDF -->|"Results"| HS
+    VE -->|"Results"| HS
+    HS -->|"3. Merged Results"| RR
+    RR -->|"4. Re-ranked Results"| PB
+    PB -->|"5. Prompt + Context"| LLM
+    LLM -->|"6. Answer"| API
+    API -->|"7. Log Conversation"| DB
+    API -->|"8. Return Response"| F
+    F -->|"Display"| U
+
+    %% Feedback Flow
+    U -->|"POST /feedback"| API
+    API -->|"Save Feedback"| DB
+
+    %% Monitoring Flow
+    DB -->|"Metrics"| GF
+
+    %% Ingestion Flow
+    subgraph Ingestion_Pipeline["📥 Ingestion Pipeline"]
+        SCR["Scrapy Spider<br/>fastapi_docs_spider.py"]
+        CH["Semantic Chunker<br/>h2/h3 headings → 120 chunks"]
+        EMB["Embedding Generator<br/>sentence-transformers"]
+    end
+
+    RAW -->|"Scrape"| SCR
+    SCR -->|"raw_pages.jsonl"| CH
+    CH -->|"chunks.json"| TFIDF
+    CH -->|"chunks.json"| EMB
+    EMB -->|"vectors"| VE
+    CH -->|"chunks"| DB
 ```
 
-### Flow
+### Flow Description
 
-1. User submits a question via UI or API
-2. Query rewriting expands the user's query for better search
-3. Hybrid search retrieves relevant docs using TF-IDF (keyword) and vector (semantic) search
-4. Cross-encoder re-ranker re-orders results by relevance
-5. DeepSeek LLM generates an answer grounded in the retrieved context
-6. Conversation is logged to PostgreSQL with relevance, token usage, and cost
-7. Users submit thumbs-up/down feedback
-8. Grafana dashboards visualize performance, usage, and quality metrics
+#### Query Flow (Runtime)
+1. **User submits** a question via the chat UI or direct API call (`POST /question`)
+2. **Query rewriting** expands the user's query for better search coverage using DeepSeek LLM
+3. **Hybrid search** retrieves relevant docs using both TF-IDF keyword search and vector semantic search simultaneously
+4. **Cross-encoder re-ranker** re-orders the merged results by actual relevance (MiniLM model)
+5. **Prompt builder** constructs a context-grounded prompt using the top-k re-ranked documents
+6. **DeepSeek LLM** generates a natural language answer with source citations
+7. **Conversation logging** saves the query, response, relevance scores, token usage, and cost to PostgreSQL
+8. **Response returned** to the user via the chat interface
+
+#### Feedback Flow
+- Users can submit thumbs-up/down feedback on responses
+- Feedback is stored alongside the conversation for quality monitoring
+
+#### Ingestion Pipeline (Offline)
+- Scrapy spider scrapes 135 FastAPI documentation pages into `raw_pages.jsonl`
+- Semantic chunker splits pages at h2/h3 heading boundaries (generates ~120 chunks)
+- TF-IDF index is built from chunks for keyword search
+- Embedding generator creates vector embeddings for semantic search
+- Everything is indexed and ready for querying
 
 ---
 
@@ -58,7 +116,7 @@ graph TD
 
 | Component | Technology | Purpose |
 |-----------|-----------|---------|
-| Backend | FastAPI | Web API |
+| Backend | FastAPI | Web API server |
 | LLM | DeepSeek (deepseek-v4-flash) | Answer generation and query rewriting |
 | Text Search | minsearch (TF-IDF) | Keyword-based retrieval |
 | Vector Search | sentence-transformers | Semantic embedding search |
@@ -66,6 +124,7 @@ graph TD
 | Database | PostgreSQL 16 + pgvector | Conversation logging and vector storage |
 | Monitoring | Grafana | Dashboards and analytics |
 | Frontend | React + Vite | Chat user interface |
+| Scraping | Scrapy | Documentation scraper |
 | Containerization | Docker Compose | Service orchestration |
 
 ---
@@ -100,7 +159,7 @@ The dataset consists of 135 HTML pages scraped from FastAPI official docs using 
 ### Prerequisites
 
 - Docker and Docker Compose
-- DeepSeek API key (get at platform.deepseek.com)
+- DeepSeek API key (get at [platform.deepseek.com](https://platform.deepseek.com))
 
 ### Setup
 
@@ -144,14 +203,16 @@ fastapi-docs-assistant/
 ├── scrapers/                # Scrapy spider project
 │   └── scrapers/spiders/    # fastapi_docs_spider.py
 ├── frontend/                # React + Vite chat UI
-├── data/                    # Pre-computed datasets
+├── data/                    # Pre-computed datasets (gitignored)
 ├── notebooks/               # Evaluation scripts
 ├── grafana/                 # Dashboard provisioning
 ├── Dockerfile.app           # Multi-stage Python build
 ├── Dockerfile.frontend      # Multi-stage React build
-├── docker-compose.yaml      # 4 services
-└── pyproject.toml           # Dependencies
+├── docker-compose.yaml      # 4 services: API, frontend, postgres, grafana
+└── pyproject.toml           # Python dependencies
 ```
+
+---
 
 ## License
 
