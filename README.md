@@ -118,13 +118,6 @@ graph TB
 
 ---
 
-## Demo
-
-![RAG Assistant Screenshot](img.png)
-
-*The FastAPI Docs Assistant in action. Users type natural language questions about FastAPI and receive context-grounded answers with code examples, source citations, and relevance scoring.*
-
----
 
 ## Technology Stack
 
