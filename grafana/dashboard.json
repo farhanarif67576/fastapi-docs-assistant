@@ -1,0 +1,264 @@
+{
+  "title": "FastAPI Docs Assistant — Monitoring",
+  "uid": "fastapi-assistant",
+  "description": "Monitoring dashboard for the FastAPI Docs Assistant RAG application",
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 2,
+  "refresh": "30s",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "title": "📊 Conversation Volume",
+      "type": "barchart",
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0},
+      "datasource": {"type": "postgres", "uid": "PostgreSQL"},
+      "targets": [{
+        "format": "table",
+        "group": [],
+        "metricColumn": "none",
+        "rawQuery": true,
+        "rawSql": "SELECT DATE(timestamp) AS time, COUNT(*)::int AS conversations FROM conversations WHERE $__timeFilter(timestamp) GROUP BY DATE(timestamp) ORDER BY time",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "bars", "fillOpacity": 80, "gradientMode": "hue", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "auto", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "single", "sort": "none"}
+      }
+    },
+    {
+      "title": "🎯 Relevance Distribution",
+      "type": "piechart",
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 0},
+      "datasource": {"type": "postgres", "uid": "PostgreSQL"},
+      "targets": [{
+        "format": "table",
+        "group": [],
+        "metricColumn": "none",
+        "rawQuery": true,
+        "rawSql": "SELECT relevance AS metric, COUNT(*)::int AS value FROM conversations GROUP BY relevance ORDER BY value DESC",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"hideFrom": {"legend": false, "tooltip": false, "viz": false}},
+          "mappings": [
+            {"type": "value", "options": {"RELEVANT": {"color": "green", "text": "✅ RELEVANT"}}},
+            {"type": "value", "options": {"PARTLY_RELEVANT": {"color": "orange", "text": "⚠️ PARTLY_RELEVANT"}}},
+            {"type": "value", "options": {"NON_RELEVANT": {"color": "red", "text": "❌ NON_RELEVANT"}}},
+            {"type": "value", "options": {"UNKNOWN": {"color": "gray", "text": "❓ UNKNOWN"}}}
+          ],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {"displayMode": "list", "placement": "bottom", "showLegend": true},
+        "pieType": "pie",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "tooltip": {"mode": "single", "sort": "none"}
+      }
+    },
+    {
+      "title": "⏱️ Average Response Time",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 0},
+      "datasource": {"type": "postgres", "uid": "PostgreSQL"},
+      "targets": [{
+        "format": "table",
+        "group": [],
+        "metricColumn": "none",
+        "rawQuery": true,
+        "rawSql": "SELECT timestamp AS time, AVG(response_time)::float AS avg_response_time FROM conversations WHERE $__timeFilter(timestamp) GROUP BY timestamp ORDER BY time",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 20, "gradientMode": "hue", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 4, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      }
+    },
+    {
+      "title": "🔤 Token Usage (Prompt vs Completion)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "datasource": {"type": "postgres", "uid": "PostgreSQL"},
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT timestamp AS time, SUM(prompt_tokens)::int AS \"Prompt Tokens\" FROM conversations WHERE $__timeFilter(timestamp) GROUP BY timestamp ORDER BY time",
+          "refId": "A"
+        },
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT timestamp AS time, SUM(completion_tokens)::int AS \"Completion Tokens\" FROM conversations WHERE $__timeFilter(timestamp) GROUP BY timestamp ORDER BY time",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "bars", "fillOpacity": 60, "gradientMode": "opacity", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 3, "scaleDistribution": {"type": "linear"}, "showPoints": "auto", "spanNulls": false, "stacking": {"group": "A", "mode": "normal"}, "thresholdsStyle": {"mode": "off"}},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "short"
+        },
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "Prompt Tokens"}, "properties": [{"id": "color", "value": {"fixedColor": "#2196F3", "mode": "fixed"}}]},
+          {"matcher": {"id": "byName", "options": "Completion Tokens"}, "properties": [{"id": "color", "value": {"fixedColor": "#FF9800", "mode": "fixed"}}]}
+        ]
+      },
+      "options": {
+        "legend": {"calcs": ["sum", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      }
+    },
+    {
+      "title": "👍👎 User Feedback Ratio",
+      "type": "barchart",
+      "gridPos": {"h": 8, "w": 6, "x": 12, "y": 8},
+      "datasource": {"type": "postgres", "uid": "PostgreSQL"},
+      "targets": [{
+        "format": "table",
+        "group": [],
+        "metricColumn": "none",
+        "rawQuery": true,
+        "rawSql": "SELECT CASE WHEN f.feedback = 1 THEN '👍 Thumbs Up' ELSE '👎 Thumbs Down' END AS metric, COUNT(*)::int AS value FROM feedback f GROUP BY f.feedback ORDER BY metric",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "bars", "fillOpacity": 80, "gradientMode": "hue", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "auto", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}},
+          "mappings": [
+            {"type": "value", "options": {"👍 Thumbs Up": {"color": "green"}}},
+            {"type": "value", "options": {"👎 Thumbs Down": {"color": "red"}}}
+          ],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "single", "sort": "none"}
+      }
+    },
+    {
+      "title": "💰 Cumulative Cost",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 6, "x": 18, "y": 8},
+      "datasource": {"type": "postgres", "uid": "PostgreSQL"},
+      "targets": [{
+        "format": "table",
+        "group": [],
+        "metricColumn": "none",
+        "rawQuery": true,
+        "rawSql": "SELECT timestamp AS time, SUM(openai_cost) OVER (ORDER BY timestamp)::float AS cumulative_cost FROM conversations WHERE $__timeFilter(timestamp) ORDER BY time",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 30, "gradientMode": "opacity", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 4, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "USD"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {"calcs": ["max"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      }
+    },
+    {
+      "title": "📝 Top 10 Most Asked Questions",
+      "type": "table",
+      "gridPos": {"h": 10, "w": 12, "x": 0, "y": 16},
+      "datasource": {"type": "postgres", "uid": "PostgreSQL"},
+      "targets": [{
+        "format": "table",
+        "group": [],
+        "metricColumn": "none",
+        "rawQuery": true,
+        "rawSql": "SELECT question AS \"Question\", COUNT(*)::int AS \"Times Asked\" FROM conversations GROUP BY question ORDER BY \"Times Asked\" DESC LIMIT 10",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "custom": {"align": "left", "cellOptions": {"type": "auto"}, "inspect": false},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "rgba(245, 245, 245, 0.4)", "value": null}]}
+        },
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "Times Asked"}, "properties": [{"id": "custom.width", "value": 120}]}
+        ]
+      },
+      "options": {
+        "footer": {"countRows": false, "enablePagination": true, "fields": "", "reducer": ["sum"], "show": false},
+        "frameIndex": 0,
+        "showHeader": true,
+        "sortBy": [{"desc": true, "displayName": "Times Asked"}]
+      }
+    },
+    {
+      "title": "📊 Response Time Distribution",
+      "type": "barchart",
+      "gridPos": {"h": 10, "w": 12, "x": 12, "y": 16},
+      "datasource": {"type": "postgres", "uid": "PostgreSQL"},
+      "targets": [{
+        "format": "table",
+        "group": [],
+        "metricColumn": "none",
+        "rawQuery": true,
+        "rawSql": "SELECT (width_bucket(response_time, 0, 5, 10) - 1) * 0.5 AS bucket_start, COUNT(*)::int AS count FROM conversations GROUP BY bucket_start ORDER BY bucket_start",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "Response Time (seconds)", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "bars", "fillOpacity": 80, "gradientMode": "opacity", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "auto", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "short"
+        },
+        "overrides": [{"matcher": {"id": "byName", "options": "bucket_start"}, "properties": [{"id": "displayName", "value": "Response Time (s)"}]}]
+      },
+      "options": {
+        "legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "single", "sort": "none"}
+      }
+    }
+  ]
+}

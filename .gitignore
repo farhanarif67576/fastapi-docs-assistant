@@ -1,0 +1,59 @@
+# Environment
+.env
+.env.local
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+
+# Data (generated)
+data/raw/
+data/fastapi_docs/
+data/*.pkl
+data/*.csv
+data/best-params.json
+*.db
+
+# Scrapy cache
+.scrapy-httpcache/
+
+# Scraper generated data
+scrapers/data/
+
+# Notebook output CSVs
+notebooks/*.csv
+
+# Temporary files
+tmp/
+
+# uv lock file (large, regeneratable)
+# uv.lock

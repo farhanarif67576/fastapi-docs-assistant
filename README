@@ -1,0 +1,158 @@
+# FastAPI Docs Assistant
+
+A Retrieval-Augmented Generation (RAG) application that answers questions about FastAPI documentation using DeepSeek LLM. Built as the capstone project for the [LLM Zoomcamp](https://github.com/DataTalksClub/llm-zoomcamp) course.
+
+---
+
+## Problem Statement
+
+FastAPI is one of the most popular Python web frameworks, with official documentation spanning 135 pages across tutorials, advanced guides, and API reference. Developers face three challenges:
+- **Beginners** feel overwhelmed navigating where to find specific patterns
+- **Intermediate users** waste time searching across multiple pages
+- **Experienced developers** need quick, precise lookups without re-reading entire pages
+
+FastAPI Docs Assistant lets developers ask natural language questions and get precise, context-grounded answers from the official documentation with citations.
+
+---
+
+## Architecture
+
+```mermaid
+graph TD
+    User["User Browser / curl"]
+    API["FastAPI API (server.py)"]
+    KB["Knowledge Base"]
+    LLM["DeepSeek LLM"]
+    DB[("PostgreSQL + pgvector")]
+    GF["Grafana Dashboard"]
+    
+    User -->|POST /question| API
+    API -->|Rewrite Query| API
+    API -->|Hybrid Search| KB
+    KB -->|TF-IDF Index| KB
+    KB -->|Vector Embeddings| KB
+    API -->|Re-rank Results| API
+    API -->|Build Prompt| API
+    API -->|Call LLM| LLM
+    LLM -->|Answer| API
+    API -->|Log Conversation| DB
+    DB -->|Metrics| GF
+    User -->|POST /feedback| API
+    API -->|Save Feedback| DB
+```
+
+### Flow
+
+1. User submits a question via UI or API
+2. Query rewriting expands the user's query for better search
+3. Hybrid search retrieves relevant docs using TF-IDF (keyword) and vector (semantic) search
+4. Cross-encoder re-ranker re-orders results by relevance
+5. DeepSeek LLM generates an answer grounded in the retrieved context
+6. Conversation is logged to PostgreSQL with relevance, token usage, and cost
+7. Users submit thumbs-up/down feedback
+8. Grafana dashboards visualize performance, usage, and quality metrics
+
+---
+
+## Technology Stack
+
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| Backend | FastAPI | Web API |
+| LLM | DeepSeek (deepseek-v4-flash) | Answer generation and query rewriting |
+| Text Search | minsearch (TF-IDF) | Keyword-based retrieval |
+| Vector Search | sentence-transformers | Semantic embedding search |
+| Re-ranker | cross-encoder (MiniLM) | Result relevance re-ordering |
+| Database | PostgreSQL 16 + pgvector | Conversation logging and vector storage |
+| Monitoring | Grafana | Dashboards and analytics |
+| Frontend | React + Vite | Chat user interface |
+| Containerization | Docker Compose | Service orchestration |
+
+---
+
+## Data
+
+The dataset consists of 135 HTML pages scraped from FastAPI official docs using Scrapy, split into 120 unique semantic chunks via heading-based chunking.
+
+| File | Contents |
+|------|----------|
+| `data/fastapi_docs/raw_pages.jsonl` | 135 raw HTML pages (Scrapy) |
+| `data/fastapi_docs/chunks.json` | 120 semantic chunks by h2/h3 heading |
+| `data/fastapi_docs/text_index.pkl` | TF-IDF search index |
+| `data/ground-truth-retrieval.csv` | 268 Q&A pairs across 119 chunks |
+| `data/retrieval-results.csv` | 4 search approaches evaluated |
+| `data/rag-evaluation.csv` | 26 RAG evaluations (LLM-as-a-Judge) |
+| `data/best-params.json` | Optimized: alpha=0.1 |
+
+### Retrieval Evaluation Results
+
+| Approach | Hit Rate | MRR |
+|----------|:--------:|:---:|
+| Text (TF-IDF default) | 0.5741 | 0.2909 |
+| Text (TF-IDF optimized) | 0.5370 | 0.3780 |
+| Vector-only (pgvector) | 0.9815 | 0.8255 |
+| Hybrid (alpha=0.1) | 0.9815 | 0.8258 |
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- Docker and Docker Compose
+- DeepSeek API key (get at platform.deepseek.com)
+
+### Setup
+
+```bash
+cp .env.example .env
+# Edit .env: set DEEPSEEK_API_KEY=sk-your-key
+docker compose up -d
+```
+
+### Access
+
+| Service | URL |
+|---------|-----|
+| Chat UI | http://localhost:8080 |
+| API | http://localhost:8000 |
+| API Docs | http://localhost:8000/docs |
+| Grafana | http://localhost:3000 (admin/admin) |
+
+### Verify
+
+```bash
+curl http://localhost:8000/health
+curl -X POST http://localhost:8000/question \
+  -H "Content-Type: application/json" \
+  -d '{"question": "How do I add CORS?"}'
+```
+
+---
+
+## Project Structure
+
+```
+fastapi-docs-assistant/
+├── app/                     # Python backend
+│   ├── ingest.py            # Scrape, chunk, embed pipeline
+│   ├── rag.py               # RAG: rewrite, search, rerank, LLM
+│   ├── db.py                # PostgreSQL + pgvector
+│   ├── minsearch.py         # TF-IDF search index
+│   ├── vector_store.py      # Embedding model
+│   └── re_ranker.py         # Cross-encoder reranker
+├── scrapers/                # Scrapy spider project
+│   └── scrapers/spiders/    # fastapi_docs_spider.py
+├── frontend/                # React + Vite chat UI
+├── data/                    # Pre-computed datasets
+├── notebooks/               # Evaluation scripts
+├── grafana/                 # Dashboard provisioning
+├── Dockerfile.app           # Multi-stage Python build
+├── Dockerfile.frontend      # Multi-stage React build
+├── docker-compose.yaml      # 4 services
+└── pyproject.toml           # Dependencies
+```
+
+## License
+
+MIT

@@ -1,0 +1,73 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: fastapi_assistant
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d fastapi_assistant"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.app
+    image: fastapi-docs-assistant-app:latest
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_DB=fastapi_assistant
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - DEEPSEEK_MODEL=${DEEPSEEK_MODEL:-deepseek-v4-flash}
+      - DATA_PATH=data/fastapi_docs
+      - TZ=UTC
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    image: fastapi-docs-assistant-frontend:latest
+    ports:
+      - "8080:80"
+    depends_on:
+      - app
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
+      - ./grafana/dashboard.yml:/etc/grafana/provisioning/dashboards/dashboard.yml
+      - ./grafana/dashboard.json:/etc/grafana/provisioning/dashboards/fastapi-assistant.json
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  grafana_data:

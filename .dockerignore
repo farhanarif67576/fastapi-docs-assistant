@@ -1,0 +1,51 @@
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environment
+.env
+.env.local
+*.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+
+# Data (exclude large generated files from image)
+# data/raw/  # uncomment if you have raw data
+
+# Notebooks (not needed at runtime)
+notebooks/
+
+# Frontend build artifacts (rebuilt in Dockerfile.frontend)
+frontend/node_modules/
+frontend/dist/
+
+# Docker
+docker-compose.override.yml
+*.md
